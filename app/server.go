@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -18,6 +20,24 @@ func requestToString(req []byte) string {
 
 	str = strings.ReplaceAll(str, "\n", "\\n")
 	return strings.ReplaceAll(str, "\r", "\\r")
+}
+
+func processRequests(conn net.Conn) {
+
+	for {
+		data := make([]byte, 64)
+		_, err := conn.Read(data)
+		if errors.Is(err, io.EOF) {
+			fmt.Println("Client closed connection!")
+			break
+		} else if err != nil {
+			fmt.Println("Error while reading request: ", err.Error())
+		}
+
+		fmt.Printf("Received command: %s\n", requestToString(data))
+
+		conn.Write([]byte("+PONG\r\n"))
+	}
 }
 
 func main() {
@@ -39,14 +59,5 @@ func main() {
 
 	defer conn.Close()
 
-	data := make([]byte, 64)
-
-	_, err = conn.Read(data)
-	if err != nil {
-		fmt.Println("Error while reading request: ", err.Error())
-	}
-
-	fmt.Printf("Received command: %s\n", requestToString(data))
-
-	conn.Write([]byte("+PONG\r\n"))
+	processRequests(conn)
 }
